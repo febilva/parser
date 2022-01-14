@@ -29,4 +29,59 @@ defmodule BooleanTest do
     assert Boolean.parse("_A") == {:error, @err, "_A"}
     assert Boolean.parse("A_") == {:error, @err, "A_"}
   end
+
+  describe "arithmetic expressions" do
+    @err "expected var while processing " <>
+           "(, followed by aexpr, followed by ) or number or var"
+
+    test "return ok/error for consts" do
+      assert Boolean.parse_aexpr("-1") == -1
+      assert {:var, "test"} == Boolean.parse_aexpr("test")
+    end
+
+    test "return ok/error for addition/subtraction terms" do
+      assert {:+, [1, 2]} == Boolean.parse_aexpr("1 +2")
+      assert {:-, [1, -2]} == Boolean.parse_aexpr("1 --2")
+      assert {:+, [1, {:+, [2, 3]}]} == Boolean.parse_aexpr("1+ (2+ 3)")
+      assert {:error, @err, "!1+(2+3)"} == Boolean.parse_aexpr("!1+(2+3)")
+    end
+
+    test "obey math precedence rules" do
+      for [input, ast] <- [
+            [
+              "1+1",
+              {:+, [1, 1]}
+            ],
+            [
+              "1 *2*3",
+              {:*, [{:*, [1, 2]}, 3]}
+            ],
+            [
+              "1+ 2 *3",
+              {:+, [1, {:*, [2, 3]}]}
+            ],
+            [
+              "( 1   +2 )  *3",
+              {:*, [{:+, [1, 2]}, 3]}
+            ],
+            [
+              "(-1 +2 - -1 *3)/4",
+              {:/, [{:-, [{:+, [-1, 2]}, {:*, [-1, 3]}]}, 4]}
+            ],
+            [
+              "(1)/ 2+ 2*(3)",
+              {:+, [{:/, [1, 2]}, {:*, [2, 3]}]}
+            ],
+            [
+              "( 1/2+ 2*3/ (myvar))",
+              {:+, [{:/, [1, 2]}, {:/, [{:*, [2, 3]}, {:var, "myvar"}]}]}
+            ]
+          ] do
+        assert ast == Boolean.parse_aexpr(input)
+      end
+    end
+  end
+
+  describe "boolean expressions" do
+  end
 end
